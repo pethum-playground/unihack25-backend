@@ -2,7 +2,7 @@ import {Request, Response} from "express";
 import {jwtSecret} from "../../../services/config/constant";
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import prismaService from "../../../services/database/prisma.service";
+import client from "../../../services/database/prisma.service";
 import logger from "../../../services/common/logger.service";
 
 export default class AuthController {
@@ -15,7 +15,7 @@ export default class AuthController {
                 return res.status(400).json({error: 'Email and password are required'});
             }
 
-            const user = await prismaService.prisma.user.findUnique({
+            const user = await client.prisma.user.findUnique({
                 where: { email: email }
             });
 
@@ -54,7 +54,7 @@ export default class AuthController {
                 return res.status(400).json({error: 'Email and password are required'});
             }
 
-            const existingUser = await prismaService.prisma.user.findUnique({
+            const existingUser = await client.prisma.user.findUnique({
                 where: { email: email }
             });
 
@@ -63,7 +63,7 @@ export default class AuthController {
             }
 
             const hashedPassword = await bcrypt.hash(password, 10);
-            const newUser = await prismaService.prisma.user.create({
+            const newUser = await client.prisma.user.create({
                 data: {
                     email,
                     password: hashedPassword

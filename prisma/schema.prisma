@@ -17,6 +17,8 @@ model User {
   password  String
   name      String?
   walletAddress String?
+  initialTransaction String? @unique
+  enabled   Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

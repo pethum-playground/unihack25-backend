@@ -4,6 +4,7 @@ import auth from "./api/v1/middlewares/auth";
 import appRouter from "./api/v1/routes/app.route";
 import prismaService from "./services/database/prisma.service";
 import cors from "cors";
+import authRoute from "./api/v1/routes/auth.route";
 
 class App {
     public express: express.Application;
@@ -22,9 +23,14 @@ class App {
             });
         });
 
+        this.setGuestRoutes();
         this.setMiddlewares();
         this.setAppRoutes();
         this.catchErrors();
+    }
+
+    private setGuestRoutes(): void {
+        this.express.use("/api/v1/auth", authRoute);
     }
 
     private setMiddlewares(): void {
