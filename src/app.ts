@@ -1,16 +1,26 @@
-import express, {NextFunction, Request, Response} from "express";
+import express, {Request, Response} from "express";
 
 import auth from "./api/v1/middlewares/auth";
 import appRouter from "./api/v1/routes/app.route";
+import prismaService from "./services/database/prisma.service";
+import cors from "cors";
 
 class App {
     public express: express.Application;
 
     constructor() {
         this.express = express();
+        this.express.use(cors());
         this.express.use(express.json());
 
-        this.express.get("/healthz", (req: any, res: { send: (arg0: string) => any; }) => res.send("Balnzed Support up and running"));
+        this.express.get("/healthz", async (req: Request, res: Response) => {
+            const dbHealthy = await prismaService.healthCheck();
+            res.status(dbHealthy ? 200 : 503).json({
+                status: dbHealthy ? 'healthy' : 'unhealthy',
+                database: dbHealthy ? 'connected' : 'disconnected',
+                timestamp: new Date().toISOString()
+            });
+        });
 
         this.setMiddlewares();
         this.setAppRoutes();
