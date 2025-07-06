@@ -59,7 +59,7 @@ export default class ContractController {
             }
 
             const documentBuffer = documentFile.buffer;
-            const contract = await client.prisma.$transaction(async (prisma) => {
+            const result = await client.prisma.$transaction(async (prisma: any) => {
 
                 const contract = await prisma.contract.create({
                     data: {
@@ -80,7 +80,7 @@ export default class ContractController {
                         },
                         select: { email: true, id: true }
                     });
-                    const existingSignerEmails = existingSigners.map(signer => signer.email);
+                    const existingSignerEmails = existingSigners.map((signer: any) => signer.email);
                     const newSignerEmails = signersArray.filter(signerId => !existingSignerEmails.includes(signerId));
                     if (newSignerEmails.length) {
                         logger.info('New signers added to contract', { contractId: contract.id, newSigners: newSignerEmails });
@@ -148,7 +148,7 @@ export default class ContractController {
                 message: "Contract created successfully",
                 contract: {
                     ...(() => {
-                        const { document, ...contractWithoutDocument } = contract!;
+                        const { document, ...contractWithoutDocument } = result!;
                         return contractWithoutDocument;
                     })(),
                     documentInfo: {
@@ -196,7 +196,7 @@ export default class ContractController {
             ]);
 
             // Convert document BLOBs to base64 for response
-            const contractsWithBase64 = contracts.map(contract => ({
+            const contractsWithBase64 = contracts.map((contract: any) => ({
                 ...contract,
                 document: contract.document.toString('base64')
             }));
