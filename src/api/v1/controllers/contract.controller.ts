@@ -73,8 +73,6 @@ export default class ContractController {
                     }
                 });
 
-
-
                 if (signersArray && Array.isArray(signersArray) && signersArray.length > 0) {
                     const existingSigners = await prisma.user.findMany({
                         where: {
@@ -113,8 +111,7 @@ export default class ContractController {
                                 email: signer.email,
                                 name: signer.email,
                                 password: signer.password,
-                                walletAddress: walletAddress,
-                                createdBy: id
+                                walletAddress: walletAddress
                             }))
                         });
 
@@ -151,7 +148,7 @@ export default class ContractController {
                         }
                     }
                 });
-            });
+            }, {timeout: 10000});
 
             return res.status(201).json({
                 message: "Contract created successfully",
