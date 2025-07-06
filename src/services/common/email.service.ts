@@ -50,7 +50,7 @@ class EmailService {
         }
     }
 
-    async sendContractInvitation(email: string, contractName: string, inviterName: string, invitationToken: string): Promise<boolean> {
+    async sendContractInvitation(email: string, contractName: string, inviterName: string, plainPassword: string, invitationToken: string): Promise<boolean> {
         const signupUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/signup`;
 
         const subject = `You've been invited to sign a contract: ${contractName}`;
@@ -64,6 +64,7 @@ class EmailService {
                 <p><strong>${inviterName}</strong> has invited you to sign a contract titled "<strong>${contractName}</strong>".</p>
                 
                 <p>To proceed with signing this contract, you need to create an account first:</p>
+                <p>Temporary Password: ${plainPassword}</p>
                 
                 <div style="text-align: center; margin: 30px 0;">
                     <a href="${signupUrl}" 

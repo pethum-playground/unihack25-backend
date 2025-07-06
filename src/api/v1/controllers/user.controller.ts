@@ -7,13 +7,19 @@ export default class UserController {
     public async initialEnable(req: Request, res: Response): Promise<any> {
         try {
             const userId = req.user!.uid;
-            const {walletAddress, initialTransaction} = req.body;
+            const {walletAddress, initialTransactionHash} = req.body;
+
+            if (!walletAddress || !initialTransactionHash) {
+                return res.status(400).json({
+                    error: 'Missing required fields: name, type, document (file), transactionHash, createdBy'
+                });
+            }
 
             const user = await client.prisma.user.update({
                 where: { id: userId },
                 data: {
                     walletAddress,
-                    initialTransaction,
+                    initialTransactionHash,
                     enabled: true,
                 }
             });

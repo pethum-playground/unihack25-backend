@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import client from "../../../services/database/prisma.service";
 import logger from "../../../services/common/logger.service";
 import emailService from "../../../services/common/email.service";
+import crypto from 'crypto';
+import bcrypt from "bcrypt";
 
 export default class ContractController {
 
@@ -39,8 +41,9 @@ export default class ContractController {
             const id = req.user!.uid;
             const documentFile = req.file;
             const createdBy = req.user!.uid;
+            const signersArray = signers ? JSON.parse(signers) : [];
 
-            if (!name || !type || !documentFile || !transactionHash || !createdBy) {
+            if (!name || !type || !documentFile || !transactionHash || !createdBy || !walletAddress || !Array.isArray(signersArray)) {
                 return res.status(400).json({
                     error: 'Missing required fields: name, type, document (file), transactionHash, createdBy'
                 });
@@ -56,7 +59,7 @@ export default class ContractController {
             }
 
             const documentBuffer = documentFile.buffer;
-            const result = await client.prisma.$transaction(async (prisma) => {
+            const contract = await client.prisma.$transaction(async (prisma) => {
 
                 const contract = await prisma.contract.create({
                     data: {
@@ -70,31 +73,67 @@ export default class ContractController {
                     }
                 });
 
-                if (signers && Array.isArray(signers) && signers.length > 0) {
+
+
+                if (signersArray && Array.isArray(signersArray) && signersArray.length > 0) {
                     const existingSigners = await prisma.user.findMany({
                         where: {
-                            email: { in: signers }
+                            email: { in: signersArray }
                         },
                         select: { email: true, id: true }
                     });
                     const existingSignerEmails = existingSigners.map(signer => signer.email);
-                    const newSigners = signers.filter(signerId => !existingSignerEmails.includes(signerId));
-                    if (newSigners.length) {
-                        logger.info('New signers added to contract', { contractId: contract.id, newSigners });
+                    const newSignerEmails = signersArray.filter(signerId => !existingSignerEmails.includes(signerId));
+                    if (newSignerEmails.length) {
+                        logger.info('New signers added to contract', { contractId: contract.id, newSigners: newSignerEmails });
 
-                        newSigners.forEach(signer => {
-                            emailService.sendContractInvitation(signer, contract.name, req.user!.name ?? 'A member', '');
-                        })
+                        const newSignersWithPasswords = [];
+                        for (const email of newSignerEmails) {
+                            console.log("came")
+                            const plainPassword = "test";
+                            console.log("plan", plainPassword)
+                            const hashedPassword = await bcrypt.hash(plainPassword, 10);
+
+                            console.log("came2")
+
+                            const signerData = {
+                                email,
+                                plainPassword,
+                                password: hashedPassword
+                            };
+
+                            console.log(signerData)
+
+                            newSignersWithPasswords.push(signerData);
+                            await emailService.sendContractInvitation(email, contract.name, req.user!.name ?? 'A member', plainPassword, '');
+                        }
+
+                        await prisma.user.createMany({
+                            data: newSignersWithPasswords.map(signer => ({
+                                email: signer.email,
+                                name: signer.email,
+                                password: signer.password,
+                                walletAddress: walletAddress,
+                                createdBy: id
+                            }))
+                        });
+
+                        const newUserIds = await prisma.user.findMany({
+                            where: {
+                                email: { in: newSignersWithPasswords.map(signer => signer.email) }
+                            },
+                            select: { id: true, email: true }
+                        });
+                        const dbSigners = [...existingSigners, ...newUserIds];
+
+                        await prisma.contractSigner.createMany({
+                            data: dbSigners.map((signer: {id: number}) => ({
+                                contractId: contract.id,
+                                userId: signer.id,
+                                status: 'pending'
+                            }))
+                        });
                     }
-
-
-                    await prisma.contractSigner.createMany({
-                        data: signers.map((signer: {id: number}) => ({
-                            contractId: contract.id,
-                            userId: signer.id,
-                            status: 'pending'
-                        }))
-                    });
                 }
 
                 return prisma.contract.findUnique({
@@ -117,7 +156,10 @@ export default class ContractController {
             return res.status(201).json({
                 message: "Contract created successfully",
                 contract: {
-                    ...result,
+                    ...(() => {
+                        const { document, ...contractWithoutDocument } = contract!;
+                        return contractWithoutDocument;
+                    })(),
                     documentInfo: {
                         originalName: documentFile.originalname,
                         mimeType: documentFile.mimetype,
@@ -560,4 +602,11 @@ export default class ContractController {
             res.status(500).json({ error: 'Internal Server Error' });
         }
     }
+
+    private generatePassword(length = 16) {
+        return crypto.randomBytes(length)
+            .toString('base64')
+            .slice(0, length);
+    }
 }
+
