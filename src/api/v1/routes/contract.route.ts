@@ -11,9 +11,10 @@ const upload = multer({
 });
 
 contractRoute.post("/verify-user", controller.verifyUser);
-contractRoute.post("/", upload.single('document'), controller.create);
-contractRoute.get("/users/:userId", controller.getByUserId);
+contractRoute.post("/", upload.single('document'), controller.create.bind(controller));
+contractRoute.get("/users", controller.getByUserId);
 contractRoute.get("/:id", controller.getById);
+contractRoute.put("/:id/sign", controller.sign);
 contractRoute.delete("/:id", controller.delete);
 
 export default contractRoute;

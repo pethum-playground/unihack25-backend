@@ -81,4 +81,27 @@ export default class UserController {
         }
     }
 
+    public async getAll(req: Request, res: Response): Promise<any> {
+        try {
+            const users = await client.prisma.user.findMany({
+                where: {
+                    enabled: true
+                },
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    walletAddress: true,
+                    enabled: true,
+                    createdAt: true,
+                }
+            });
+
+            return res.status(200).json(users);
+        } catch (error) {
+            logger.error('Error fetching users', { error });
+            res.status(500).json({ error: 'Internal Server Error' });
+        }
+    }
+
 }

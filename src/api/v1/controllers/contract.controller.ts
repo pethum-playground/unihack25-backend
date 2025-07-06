@@ -82,23 +82,21 @@ export default class ContractController {
                     });
                     const existingSignerEmails = existingSigners.map((signer: any) => signer.email);
                     const newSignerEmails = signersArray.filter(signerId => !existingSignerEmails.includes(signerId));
-                    if (newSignerEmails.length) {
-                        logger.info('New signers added to contract', { contractId: contract.id, newSigners: newSignerEmails });
+                    logger.info('New signers added to contract', { contractId: contract.id, newSigners: newSignerEmails });
 
-                        const newSignersWithPasswords = [];
-                        for (const email of newSignerEmails) {
-                            const plainPassword = this.generateRandomPassword();
-                            const hashedPassword = await bcrypt.hash(plainPassword, 10)
+                    const newSignersWithPasswords = [];
+                    for (const email of newSignerEmails) {
+                        const plainPassword = this.generateRandomPassword();
+                        const hashedPassword = await bcrypt.hash(plainPassword, 10)
 
-                            const signerData = {
-                                email,
-                                plainPassword,
-                                password: hashedPassword
-                            };
+                        const signerData = {
+                            email,
+                            plainPassword,
+                            password: hashedPassword
+                        };
 
-                            newSignersWithPasswords.push(signerData);
-                            await emailService.sendContractInvitation(email, contract.name, req.user!.name ?? 'A member', plainPassword, '');
-                        }
+                        newSignersWithPasswords.push(signerData);
+                        await emailService.sendContractInvitation(email, contract.name, req.user!.name ?? 'A member', plainPassword, '');
 
                         await prisma.user.createMany({
                             data: newSignersWithPasswords.map(signer => ({
@@ -108,23 +106,23 @@ export default class ContractController {
                                 walletAddress: walletAddress
                             }))
                         });
-
-                        const newUserIds = await prisma.user.findMany({
-                            where: {
-                                email: { in: newSignersWithPasswords.map(signer => signer.email) }
-                            },
-                            select: { id: true, email: true }
-                        });
-                        const dbSigners = [...existingSigners, ...newUserIds];
-
-                        await prisma.contractSigner.createMany({
-                            data: dbSigners.map((signer: {id: number}) => ({
-                                contractId: contract.id,
-                                userId: signer.id,
-                                status: 'pending'
-                            }))
-                        });
                     }
+
+                    const newUserIds = await prisma.user.findMany({
+                        where: {
+                            email: { in: newSignersWithPasswords.map(signer => signer.email) }
+                        },
+                        select: { id: true, email: true }
+                    });
+                    const dbSigners = [...existingSigners, ...newUserIds];
+
+                    await prisma.contractSigner.createMany({
+                        data: dbSigners.map((signer: {id: number}) => ({
+                            contractId: contract.id,
+                            userId: signer.id,
+                            status: 'pending'
+                        }))
+                    });
                 }
 
                 return prisma.contract.findUnique({
@@ -237,7 +235,8 @@ export default class ContractController {
                             user: {
                                 select: { id: true, name: true, email: true, walletAddress: true }
                             }
-                        }
+                        },
+                        orderBy: { signedAt: 'asc' }
                     }
                 }
             });
@@ -246,10 +245,22 @@ export default class ContractController {
                 return res.status(404).json({ error: 'Contract not found' });
             }
 
+            const signedSigners = contract.signers.filter(signer => signer.status === 'signed' && signer.transactionHash);
+            let latestTransactionHash = contract.transactionHash; // Default to original contract hash
+
+            if (signedSigners.length) {
+                const latestSigner = signedSigners[signedSigners.length - 1];
+                latestTransactionHash = latestSigner.transactionHash!;
+            }
+
             return res.status(200).json({
                 message: "Contract retrieved successfully",
                 contract: {
-                    ...contract
+                    ...(() => {
+                        const { document, ...contractWithoutDocument } = contract!;
+                        return contractWithoutDocument;
+                    })(),
+                    latestTransactionHash
                 },
             });
         } catch (error) {
@@ -284,6 +295,68 @@ export default class ContractController {
             });
         } catch (error) {
             logger.error('Error deleting contract', { error });
+            res.status(500).json({ error: 'Internal Server Error' });
+        }
+    }
+
+    public async sign(req: Request, res: Response): Promise<any> {
+        try {
+            const { id } = req.params;
+            const contractId = parseInt(id);
+            const userId = req.user!.uid;
+
+            const contract = await client.prisma.contract.findUnique({
+                where: { id: contractId },
+                include: {
+                    creator: {
+                        select: { id: true, name: true, email: true, walletAddress: true }
+                    },
+                    signers: {
+                        include: {
+                            user: {
+                                select: { id: true, name: true, email: true, walletAddress: true }
+                            }
+                        },
+                        orderBy: { signedAt: 'asc' }
+                    }
+                }
+            });
+
+            if (!contract) {
+                return res.status(404).json({ error: 'Contract not found' });
+            }
+
+            const contractSign = contract.signers.find((signer: any) => signer.userId === userId);
+            if (!contractSign) {
+                return res.status(404).json({ error: 'Contract not found for this user' });
+            }
+
+            const signedSigners = contract.signers.filter((signer: any) => signer.status === 'signed' && signer.transactionHash);
+            let latestTransactionHash = contract.transactionHash;
+
+            if (signedSigners.length) {
+                const latestSigner = signedSigners[signedSigners.length - 1];
+                latestTransactionHash = latestSigner.transactionHash!;
+            }
+
+            const updateDate = {
+                parentTransactionHash: latestTransactionHash,
+                transactionHash: req.body.transactionHash,
+                signedAt: new Date(),
+                status: 'signed',
+                updatedAt: new Date(),
+            }
+            const updatedData = await client.prisma.contractSigner.update({
+                where: { id: contractSign.id },
+                data: updateDate
+            });
+
+            return res.status(200).json({
+                message: "Contract signed successfully",
+                updatedData
+            });
+        } catch (error) {
+            logger.error('Error signing contract', { error });
             res.status(500).json({ error: 'Internal Server Error' });
         }
     }
@@ -584,9 +657,14 @@ export default class ContractController {
                 orderBy: { createdAt: 'desc' }
             });
 
+            const contractsWithoutDocuments = contracts.map(contract => {
+                const { document, ...contractWithoutDocument } = contract;
+                return contractWithoutDocument;
+            });
+
             return res.status(200).json({
                 message: "Contracts retrieved successfully",
-                contracts
+                contracts: contractsWithoutDocuments
             });
         } catch (error) {
             logger.error('Error retrieving contracts by user ID', { error });
