@@ -1,9 +1,9 @@
 import {Request, Response} from "express";
-import {jwtSecret} from "../../../services/config/constant";
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import client from "../../../services/database/prisma.service";
 import logger from "../../../services/common/logger.service";
+import {jwtSecret} from "../../../config/constant";
 
 export default class AuthController {
 

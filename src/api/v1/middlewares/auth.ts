@@ -1,6 +1,6 @@
 import {NextFunction, Request, Response} from "express";
 import jwt from 'jsonwebtoken';
-import {jwtSecret} from "../../../services/config/constant";
+import {jwtSecret} from "../../../config/constant";
 
 export default function (req: Request, res: Response, next: NextFunction): any {
     try {

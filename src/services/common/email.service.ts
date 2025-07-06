@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import logger from './logger.service';
+import {emailConfigs} from "../../config/constant";
 
 interface EmailOptions {
     to: string;
@@ -13,12 +14,12 @@ class EmailService {
 
     constructor() {
         this.transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || 'smtp.gmail.com',
-            port: parseInt(process.env.SMTP_PORT || '587'),
+            host: emailConfigs.host,
+            port: emailConfigs.port,
             secure: false,
             auth: {
-                user: process.env.SMTP_USER,
-                pass: process.env.SMTP_PASS,
+                user: emailConfigs.user,
+                pass: emailConfigs.password,
             },
         });
     }
