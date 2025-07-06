@@ -87,20 +87,14 @@ export default class ContractController {
 
                         const newSignersWithPasswords = [];
                         for (const email of newSignerEmails) {
-                            console.log("came")
-                            const plainPassword = "test";
-                            console.log("plan", plainPassword)
-                            const hashedPassword = await bcrypt.hash(plainPassword, 10);
-
-                            console.log("came2")
+                            const plainPassword = this.generateRandomPassword();
+                            const hashedPassword = await bcrypt.hash(plainPassword, 10)
 
                             const signerData = {
                                 email,
                                 plainPassword,
                                 password: hashedPassword
                             };
-
-                            console.log(signerData)
 
                             newSignersWithPasswords.push(signerData);
                             await emailService.sendContractInvitation(email, contract.name, req.user!.name ?? 'A member', plainPassword, '');
@@ -165,7 +159,7 @@ export default class ContractController {
                 },
             });
         } catch (error) {
-            logger.error('Error creating contract', { error });
+            logger.error('Error creating contract', error);
             res.status(500).json({ error: 'Internal Server Error' });
         }
     }
@@ -600,10 +594,9 @@ export default class ContractController {
         }
     }
 
-    private generatePassword(length = 16) {
+    private generateRandomPassword(length = 16): string {
         return crypto.randomBytes(length)
             .toString('base64')
             .slice(0, length);
     }
 }
-
