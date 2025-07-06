@@ -5,6 +5,7 @@ CREATE TABLE "users" (
     "password" TEXT NOT NULL,
     "name" TEXT,
     "walletAddress" TEXT,
+    "initialTransactionHash" TEXT,
     "enabled" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -14,3 +15,6 @@ CREATE TABLE "users" (
 
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_initialTransactionHash_key" ON "users"("initialTransactionHash");

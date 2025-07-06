@@ -48,7 +48,7 @@ export default class AuthController {
 
     public async register(req: Request, res: Response): Promise<any> {
         try {
-            const {email, password} = req.body;
+            const {email, name, password} = req.body;
 
             if (!email || !password) {
                 return res.status(400).json({error: 'Email and password are required'});
@@ -66,6 +66,7 @@ export default class AuthController {
             const newUser = await client.prisma.user.create({
                 data: {
                     email,
+                    name,
                     password: hashedPassword
                 }
             });

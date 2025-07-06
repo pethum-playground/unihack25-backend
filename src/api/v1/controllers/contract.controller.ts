@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import client from "../../../services/database/prisma.service";
 import logger from "../../../services/common/logger.service";
+import emailService from "../../../services/common/email.service";
 
 export default class ContractController {
 
@@ -55,15 +56,6 @@ export default class ContractController {
             }
 
             const documentBuffer = documentFile.buffer;
-            let signersArray: number[] = [];
-            if (signers) {
-                try {
-                    signersArray = typeof signers === 'string' ? JSON.parse(signers) : signers;
-                } catch (error) {
-                    return res.status(400).json({ error: 'Invalid signers format. Expected array of user IDs.' });
-                }
-            }
-
             const result = await client.prisma.$transaction(async (prisma) => {
 
                 const contract = await prisma.contract.create({
@@ -78,11 +70,28 @@ export default class ContractController {
                     }
                 });
 
-                if (signersArray && Array.isArray(signersArray) && signersArray.length > 0) {
+                if (signers && Array.isArray(signers) && signers.length > 0) {
+                    const existingSigners = await prisma.user.findMany({
+                        where: {
+                            email: { in: signers }
+                        },
+                        select: { email: true, id: true }
+                    });
+                    const existingSignerEmails = existingSigners.map(signer => signer.email);
+                    const newSigners = signers.filter(signerId => !existingSignerEmails.includes(signerId));
+                    if (newSigners.length) {
+                        logger.info('New signers added to contract', { contractId: contract.id, newSigners });
+
+                        newSigners.forEach(signer => {
+                            emailService.sendContractInvitation(signer, contract.name, req.user!.name ?? 'A member', '');
+                        })
+                    }
+
+
                     await prisma.contractSigner.createMany({
-                        data: signersArray.map((signerId: number) => ({
+                        data: signers.map((signer: {id: number}) => ({
                             contractId: contract.id,
-                            userId: signerId,
+                            userId: signer.id,
                             status: 'pending'
                         }))
                     });
@@ -127,7 +136,6 @@ export default class ContractController {
             const { page = 1, limit = 10, status, createdBy } = req.query;
             const skip = (Number(page) - 1) * Number(limit);
 
-            // Build filter conditions
             const where: any = {};
             if (status) where.status = status;
             if (createdBy) where.createdBy = Number(createdBy);
