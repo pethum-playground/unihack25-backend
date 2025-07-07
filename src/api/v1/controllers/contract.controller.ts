@@ -42,6 +42,7 @@ export default class ContractController {
             const documentFile = req.file;
             const createdBy = req.user!.uid;
             const signersArray = signers ? JSON.parse(signers) : [];
+            const signersEmailArray = signersArray.map((signer: any) => signer.email);
 
             if (!name || !type || !documentFile || !transactionHash || !createdBy || !walletAddress || !Array.isArray(signersArray)) {
                 return res.status(400).json({
@@ -76,34 +77,35 @@ export default class ContractController {
                 if (signersArray && Array.isArray(signersArray) && signersArray.length > 0) {
                     const existingSigners = await prisma.user.findMany({
                         where: {
-                            email: { in: signersArray }
+                            email: { in: signersEmailArray }
                         },
                         select: { email: true, id: true }
                     });
                     const existingSignerEmails = existingSigners.map((signer: any) => signer.email);
-                    const newSignerEmails = signersArray.filter(signerId => !existingSignerEmails.includes(signerId));
-                    logger.info('New signers added to contract', { contractId: contract.id, newSigners: newSignerEmails });
+                    const newSigners = signersArray.filter((signer: any) => !existingSignerEmails.includes(signer.email));
+                    logger.info('New signers added to contract', { contractId: contract.id, newSigners: newSigners });
 
                     const newSignersWithPasswords = [];
-                    for (const email of newSignerEmails) {
+                    for (const signer of newSigners) {
                         const plainPassword = this.generateRandomPassword();
                         const hashedPassword = await bcrypt.hash(plainPassword, 10)
 
                         const signerData = {
-                            email,
+                            email: signer.email,
+                            walletAddress: signer.walletAddress,
                             plainPassword,
                             password: hashedPassword
                         };
 
                         newSignersWithPasswords.push(signerData);
-                        await emailService.sendContractInvitation(email, contract.name, req.user!.name ?? 'A member', plainPassword, '');
+                        await emailService.sendContractInvitation(signer.email, contract.name, req.user!.name ?? 'A member', plainPassword, '');
 
                         await prisma.user.createMany({
                             data: newSignersWithPasswords.map(signer => ({
                                 email: signer.email,
                                 name: signer.email,
                                 password: signer.password,
-                                walletAddress: walletAddress
+                                walletAddress: signer.walletAddress
                             }))
                         });
                     }
@@ -265,6 +267,45 @@ export default class ContractController {
             });
         } catch (error) {
             logger.error('Error retrieving contract', { error });
+            res.status(500).json({ error: 'Internal Server Error' });
+        }
+    }
+
+    public async getDocumentById(req: Request, res: Response): Promise<any> {
+        try {
+            const { id } = req.params;
+            const contractId = parseInt(id);
+
+            if (isNaN(contractId)) {
+                return res.status(400).json({ error: 'Invalid contract ID' });
+            }
+
+            const contract = await client.prisma.contract.findUnique({
+                where: { id: contractId },
+                select: {
+                    id: true,
+                    name: true,
+                    document: true,
+                }
+            });
+
+            if (!contract) {
+                return res.status(404).json({ error: 'Contract not found' });
+            }
+
+            if (!contract.document) {
+                return res.status(404).json({ error: 'Document not found for this contract' });
+            }
+
+            res.set({
+                'Content-Type': 'application/octet-stream',
+                'Content-Disposition': `attachment; filename="${contract.name}_contract.pdf"`,
+                'Content-Length': contract.document.length.toString()
+            });
+
+            return res.send(contract.document);
+        } catch (error) {
+            logger.error('Error retrieving contract document', { error });
             res.status(500).json({ error: 'Internal Server Error' });
         }
     }
