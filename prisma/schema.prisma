@@ -31,6 +31,7 @@ model User {
 
 model Contract {
   id              Int      @id @default(autoincrement())
+  contractAddress String?   @unique
   name            String
   description     String?
   type            String

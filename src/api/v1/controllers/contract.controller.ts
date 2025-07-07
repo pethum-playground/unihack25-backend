@@ -37,16 +37,16 @@ export default class ContractController {
 
     public async create(req: Request, res: Response): Promise<any> {
         try {
-            const { name, description, type, signers, transactionHash, walletAddress } = req.body;
+            const { name, description, type, signers, transactionHash, walletAddress, contractAddress } = req.body;
             const id = req.user!.uid;
             const documentFile = req.file;
             const createdBy = req.user!.uid;
             const signersArray = signers ? JSON.parse(signers) : [];
             const signersEmailArray = signersArray.map((signer: any) => signer.email);
 
-            if (!name || !type || !documentFile || !transactionHash || !createdBy || !walletAddress || !Array.isArray(signersArray)) {
+            if (!name || !type || !documentFile || !transactionHash || !createdBy || !walletAddress || !contractAddress || !Array.isArray(signersArray)) {
                 return res.status(400).json({
-                    error: 'Missing required fields: name, type, document (file), transactionHash, createdBy'
+                    error: 'Missing required fields: name, type, document (file), transactionHash, createdBy, walletAddress, contractAddress'
                 });
             }
 
@@ -65,6 +65,7 @@ export default class ContractController {
                 const contract = await prisma.contract.create({
                     data: {
                         name,
+                        contractAddress,
                         description,
                         type,
                         document: documentBuffer,
@@ -144,8 +145,50 @@ export default class ContractController {
                 });
             }, {timeout: 10000});
 
+            try {
+                const allRecipients = [];
+
+                const creatorUser = await client.prisma.user.findUnique({
+                    where: { id: createdBy },
+                    select: { name: true, email: true }
+                });
+
+                if (creatorUser) {
+                    allRecipients.push({
+                        email: creatorUser.email,
+                        name: creatorUser.name || 'Creator'
+                    });
+                }
+
+                for (const signer of result!.signers) {
+                    allRecipients.push({
+                        email: signer.user.email,
+                        name: signer.user.name || 'Signer'
+                    });
+                }
+
+                if (allRecipients.length > 0) {
+                    await emailService.sendContractQRCodeBulk(
+                        allRecipients,
+                        name,
+                        result!.id,
+                        contractAddress
+                    );
+                    logger.info('Bulk QR code sent to all participants', {
+                        contractId: result!.id,
+                        recipientCount: allRecipients.length,
+                        recipients: allRecipients.map(r => r.email)
+                    });
+                }
+            } catch (qrError) {
+                logger.error('Error sending QR codes', {
+                    contractId: result!.id,
+                    error: qrError
+                });
+            }
+
             return res.status(201).json({
-                message: "Contract created successfully",
+                message: "Contract created successfully and QR codes sent to all participants",
                 contract: {
                     ...(() => {
                         const { document, ...contractWithoutDocument } = result!;
