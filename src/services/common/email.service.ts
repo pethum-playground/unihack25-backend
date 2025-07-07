@@ -143,7 +143,7 @@ class EmailService {
                     <p style="color: #666; font-size: 14px;">
                         You can scan this QR code with any QR code reader to quickly access the contract address.
                         You can also visit the contract directly at:
-                        <br><a href="${frontendUrl}/contract/${contractAddress}">${frontendUrl}/contract/${contractAddress}</a>
+                        <br><a href="${frontendUrl}/contracts/${contractId}">${frontendUrl}/contracts/${contractId}</a>
                     </p>
                     
                     <p style="color: #666; font-size: 12px; margin-top: 30px;">
