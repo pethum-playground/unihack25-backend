@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import logger from './logger.service';
-import {emailConfigs} from "../../config/constant";
+import {emailConfigs, frontendUrl} from "../../config/constant";
 
 interface EmailOptions {
     to: string;
@@ -27,7 +27,7 @@ class EmailService {
     async sendEmail(options: EmailOptions): Promise<boolean> {
         try {
             const mailOptions = {
-                from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                from: emailConfigs.user,
                 to: options.to,
                 subject: options.subject,
                 html: options.html,
@@ -52,7 +52,7 @@ class EmailService {
     }
 
     async sendContractInvitation(email: string, contractName: string, inviterName: string, plainPassword: string, invitationToken: string): Promise<boolean> {
-        const signupUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/signup`;
+        const signupUrl = `${frontendUrl}`;
 
         const subject = `You've been invited to sign a contract: ${contractName}`;
 
