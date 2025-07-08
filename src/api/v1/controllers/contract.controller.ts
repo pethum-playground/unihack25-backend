@@ -4,6 +4,7 @@ import logger from "../../../services/common/logger.service";
 import emailService from "../../../services/common/email.service";
 import crypto from 'crypto';
 import bcrypt from "bcrypt";
+import {emailConfigs} from "../../../config/constant";
 
 export default class ContractController {
 
@@ -83,7 +84,7 @@ export default class ContractController {
                     });
                     const existingSignerEmails = existingSigners.map((signer: any) => signer.email);
                     const newSigners = signersArray.filter((signer: any) => !existingSignerEmails.includes(signer.email));
-                    logger.info('signers', { existingSigners, newSigners });
+                    logger.info('smtp', emailConfigs);
                     logger.info('New signers added to contract', { contractId: contract.id, newSigners: newSigners });
 
                     const newSignersWithPasswords = [];
