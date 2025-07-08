@@ -128,7 +128,7 @@ class EmailService {
                 <p>Please review the contract details and complete any required actions:</p>
                 
                 <div style="text-align: center; margin: 30px 0;">
-                    <a href="${frontendUrl}/contracts/${contractId}"
+                    <a href="${frontendUrl}"
                        style="background-color: #007bff; color: white; padding: 12px 24px;
                               text-decoration: none; border-radius: 5px; display: inline-block;">
                         View Contract
@@ -137,7 +137,7 @@ class EmailService {
                 
                 <p style="color: #666; font-size: 14px;">
                     If the button doesn't work, copy and paste this link into your browser:<br>
-                    <a href="${frontendUrl}/contracts/${contractId}">${frontendUrl}/contracts/${contractId}</a>
+                    <a href="${frontendUrl}">${frontendUrl}</a>
                 </p>
                 
                 <p style="color: #666; font-size: 12px; margin-top: 30px;">
@@ -148,7 +148,7 @@ class EmailService {
             const text = `
                 Contract: ${contractName}
                                 
-                You can access the contract at: ${frontendUrl}/contract/${contractId}
+                You can access the contract at: ${frontendUrl}
             `;
 
             return await this.sendEmail({
