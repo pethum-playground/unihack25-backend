@@ -111,53 +111,43 @@ class EmailService {
         });
     }
 
-    async sendContractQRCodeBulk(
+    async sendContractBulk(
         recipients: Array<{email: string, name: string}>,
         contractName: string,
         contractId: number,
-        contractAddress: string
     ): Promise<boolean> {
         try {
-            const qrCodeDataURL = await QRCode.toBuffer(contractAddress);
-
             const recipientEmails = recipients.map(r => r.email).join(', ');
-            const subject = `Contract QR Code: ${contractName}`;
+            const subject = `Contract Created: ${contractName}`;
 
             const html = `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                    <h2 style="color: #333;">Contract Access QR Code</h2>
-                    
-                    <p>Hello,</p>
-                    
-                    <p>Here is the QR code to access the contract "<strong>${contractName}</strong>":</p>
-                    
-                    <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
-                        <img src="cid:contractQRCode" alt="Contract QR Code" style="max-width: 256px; height: auto;" />
-                    </div>
-                    
-                    <div style="background-color: #e9ecef; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                        <p style="margin: 0; font-weight: bold; color: #495057;">Contract Address:</p>
-                        <p style="margin: 5px 0 0 0; font-family: monospace; word-break: break-all; color: #6c757d;">${contractAddress}</p>
-                    </div>
-                    
-                    <p style="color: #666; font-size: 14px;">
-                        You can scan this QR code with any QR code reader to quickly access the contract address.
-                        You can also visit the contract directly at:
-                        <br><a href="${frontendUrl}/contracts/${contractId}">${frontendUrl}/contracts/${contractId}</a>
-                    </p>
-                    
-                    <p style="color: #666; font-size: 12px; margin-top: 30px;">
-                        Keep this QR code safe as it provides direct access to your contract.
-                    </p>
+                <p>Hello,</p>
+
+                <p>You have been assigned to the contract "<strong>${contractName}</strong>".</p>
+                
+                <p>Please review the contract details and complete any required actions:</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="${frontendUrl}/contracts/${contractId}"
+                       style="background-color: #007bff; color: white; padding: 12px 24px;
+                              text-decoration: none; border-radius: 5px; display: inline-block;">
+                        View Contract
+                    </a>
                 </div>
+                
+                <p style="color: #666; font-size: 14px;">
+                    If the button doesn't work, copy and paste this link into your browser:<br>
+                    <a href="${frontendUrl}/contracts/${contractId}">${frontendUrl}/contracts/${contractId}</a>
+                </p>
+                
+                <p style="color: #666; font-size: 12px; margin-top: 30px;">
+                    Please ensure you complete all required actions within the specified timeframe.
+                </p>
             `;
 
             const text = `
-                Contract QR Code: ${contractName}
-                
-                Here is the contract address for "${contractName}":
-                ${contractAddress}
-                
+                Contract: ${contractName}
+                                
                 You can access the contract at: ${frontendUrl}/contract/${contractId}
             `;
 
@@ -165,20 +155,12 @@ class EmailService {
                 to: recipientEmails,
                 subject,
                 html,
-                text,
-                attachments: [
-                    {
-                        filename: 'contract_qr_code.png',
-                        content: qrCodeDataURL,
-                        cid: 'contractQRCode'
-                    }
-                ]
+                text
             });
         } catch (error) {
             logger.error('Failed to generate or send bulk QR code', {
                 error,
-                recipients: recipients.map(r => r.email),
-                contractAddress
+                recipients: recipients.map(r => r.email)
             });
             return false;
         }

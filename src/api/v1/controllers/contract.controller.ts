@@ -144,8 +144,49 @@ export default class ContractController {
                 });
             }, {timeout: 10000});
 
+            try {
+                const allRecipients = [];
+
+                const creatorUser = await client.prisma.user.findUnique({
+                    where: { id: createdBy },
+                    select: { name: true, email: true }
+                });
+
+                if (creatorUser) {
+                    allRecipients.push({
+                        email: creatorUser.email,
+                        name: creatorUser.name || 'Creator'
+                    });
+                }
+
+                for (const signer of result!.signers) {
+                    allRecipients.push({
+                        email: signer.user.email,
+                        name: signer.user.name || 'Signer'
+                    });
+                }
+
+                if (allRecipients.length) {
+                    await emailService.sendContractBulk(
+                        allRecipients,
+                        name,
+                        result!.id
+                    );
+                    logger.info('Contract to all participants', {
+                        contractId: result!.id,
+                        recipientCount: allRecipients.length,
+                        recipients: allRecipients.map(r => r.email)
+                    });
+                }
+            } catch (qrError) {
+                logger.error('Error sending mails', {
+                    contractId: result!.id,
+                    error: qrError
+                });
+            }
+
             return res.status(201).json({
-                message: "Contract created successfully and QR codes sent to all participants",
+                message: "Contract created successfully and sent to all participants",
                 contract: {
                     ...(() => {
                         const { document, ...contractWithoutDocument } = result!;
