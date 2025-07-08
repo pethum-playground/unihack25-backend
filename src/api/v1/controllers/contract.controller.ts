@@ -84,8 +84,6 @@ export default class ContractController {
                     });
                     const existingSignerEmails = existingSigners.map((signer: any) => signer.email);
                     const newSigners = signersArray.filter((signer: any) => !existingSignerEmails.includes(signer.email));
-                    logger.info('smtp', emailConfigs);
-                    logger.info('New signers added to contract', { contractId: contract.id, newSigners: newSigners });
 
                     const newSignersWithPasswords = [];
                     for (const signer of newSigners) {
